@@ -5,16 +5,19 @@ import networkx as nx
 import timeit
 
 def main():
-	getGraphSummary("uniprotTest")
+	#getGraphSummary("uniprotTest")
+	getGraphSummary("LUBMOld")
 
 def getGraphSummary(dbname):
 	G = getGraphFromRDFDB(dbname)
 	print "Graph built"
 	S = G.copy()
 	print "Graph copied"
+	nodeToSupernode = {}
 	for node in S.nodes():
 		S.node[node]['cost'] = len(S.neighbors(node))
 		S.node[node]['contains'] = set([node])
+		nodeToSupernode[node] = node
 	print "Graph annotated"
 	H = Q.PriorityQueue();
 	
@@ -26,7 +29,7 @@ def getGraphSummary(dbname):
 				two_hop_neighbors.add(neighbors2)
 		
 		for v in two_hop_neighbors:
-			suv = calcSUV(G, S, u, v)
+			suv = calcSUV(G, S, u, v, nodeToSupernode)
 			if suv > 0:
 				H.put(-suv, (u,v))
 				#print suv
@@ -38,11 +41,15 @@ def getGraphSummary(dbname):
 		
 
 #Expects original graph G, and nodes from S		
-def calcSUV(G, S, u, v):
+def calcSUV(G, S, u, v, nodeToSupernode):
 	#beg = timeit.default_timer()
-	uNeighbors = set(G.neighbors(u))
-	vNeighbors = set(G.neighbors(v))
-	neighbors = uNeighbors.union(vNeighbors)
+	neighbors = set()
+	for uNode in S.node[u]['contains']:
+		for neighbor in G.neighbors(uNode):
+			neighbors.add(nodeToSupernode[neighbor])
+	for vNode in S.node[v]['contains']:
+		for neighbor in G.neighbors(vNode):
+			neighbors.add(nodeToSupernode[neighbor])
 	
 	costU = S.node[u]['cost']
 	costV = S.node[v]['cost']
@@ -51,14 +58,16 @@ def calcSUV(G, S, u, v):
 	costW = 0
 	#cur = timeit.default_timer()
 	#print cur - beg
-	for n in neighbors:
+	for ns in neighbors:
 		A_wn = 0
-		for uNode in S.node[u]['contains']:
-			if G.has_edge(uNode, n):
-				A_wn += 1
-		for vNode in S.node[v]['contains']:
-			if G.has_edge(vNode, n):
-				A_wn += 1
+		for n in S.node[ns]['contains']:
+			for uNode in S.node[u]['contains']:
+				if G.has_edge(uNode, n):
+					A_wn += 1
+			for vNode in S.node[v]['contains']:
+				if G.has_edge(vNode, n):
+					A_wn += 1
+		piWN = numNodesW * len(S.node[ns]['contains'])
 		if numNodesW - A_wn + 1 < A_wn:
 			costW += numNodesW - A_wn + 1
 		else:
