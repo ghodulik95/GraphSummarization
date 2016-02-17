@@ -15,7 +15,7 @@ def getGraphSummary(dbname):
 	print "Graph copied"
 	nodeToSupernode = {}
 	for node in S.nodes():
-		S.node[node]['cost'] = len(S.neighbors(node))
+		S.node[node]['cost'] = len(list(nx.all_neighbors(S,node)))
 		S.node[node]['contains'] = set([node])
 		nodeToSupernode[node] = node
 	print "Graph annotated"
@@ -24,9 +24,10 @@ def getGraphSummary(dbname):
 	count = 0
 	for u in S.nodes():
 		two_hop_neighbors = Set()
-		for neighbors1 in G.neighbors(u):
-			for neighbors2 in G.neighbors(neighbors1):
-				two_hop_neighbors.add(neighbors2)
+		for neighbors1 in nx.all_neighbors(G,u):
+			for neighbors2 in nx.all_neighbors(G,neighbors1):
+				if neighbors2 != u:
+					two_hop_neighbors.add(neighbors2) 
 		
 		for v in two_hop_neighbors:
 			suv = calcSUV(G, S, u, v, nodeToSupernode)
@@ -34,7 +35,7 @@ def getGraphSummary(dbname):
 				H.put(-suv, (u,v))
 				#print suv
 		count += 1
-		if count % 10000 == 0:
+		if count % 10 == 0:
 			print count
 	for _ in range(0,25):		
 		print H.get()
@@ -45,10 +46,10 @@ def calcSUV(G, S, u, v, nodeToSupernode):
 	#beg = timeit.default_timer()
 	neighbors = set()
 	for uNode in S.node[u]['contains']:
-		for neighbor in G.neighbors(uNode):
+		for neighbor in nx.all_neighbors(G,uNode):
 			neighbors.add(nodeToSupernode[neighbor])
 	for vNode in S.node[v]['contains']:
-		for neighbor in G.neighbors(vNode):
+		for neighbor in nx.all_neighbors(G,vNode):
 			neighbors.add(nodeToSupernode[neighbor])
 	
 	costU = S.node[u]['cost']
@@ -60,18 +61,27 @@ def calcSUV(G, S, u, v, nodeToSupernode):
 	#print cur - beg
 	for ns in neighbors:
 		A_wn = 0
+		A_nw = 0
 		for n in S.node[ns]['contains']:
 			for uNode in S.node[u]['contains']:
 				if G.has_edge(uNode, n):
 					A_wn += 1
+				if G.has_edge(n, uNode):
+					A_nw += 1
 			for vNode in S.node[v]['contains']:
 				if G.has_edge(vNode, n):
 					A_wn += 1
+				if G.has_edge(n, vNode):
+					A_nw += 1
 		piWN = numNodesW * len(S.node[ns]['contains'])
-		if numNodesW - A_wn + 1 < A_wn:
-			costW += numNodesW - A_wn + 1
+		if piWN - A_wn + 1 < A_wn:
+			costW += piWN - A_wn + 1
 		else:
 			costW += A_wn
+		if piWN - A_nw + 1 < A_nw:
+			costW += piWN - A_nw + 1
+		else:
+			costW += A_nw
 	#cur = timeit.default_timer()
 	#print cur - beg
 	#print str(costU)+" "+str(costV)+" "+str(costW)
