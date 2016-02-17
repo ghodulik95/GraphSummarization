@@ -100,7 +100,7 @@ def getGraphFromRDFDB(dbname):
 		
 	cnxn.close()
 
-	G = nx.DiGraph()
+	G = nx.Graph()
 	G.add_nodes_from(nodes)
 	G.add_edges_from(edges)
 	return G
